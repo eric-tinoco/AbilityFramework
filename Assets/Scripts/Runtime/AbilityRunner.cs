@@ -1,43 +1,90 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace AbilityFramework.Runtime
 {
     public sealed class AbilityRunner : MonoBehaviour
     {
-        [SerializeField] private AbilityDefinition ability;
+        [SerializeField] private AbilityDefinition[] abilities;
 
-        private float _cooldownRemaining;
+        private AbilityDefinition PrimaryAbility
+        {
+            get
+            {
+                if (abilities == null || abilities.Length == 0)
+                {
+                    return null;
+                }
+                
+                return abilities[0];
+            }
+        }
+
+        private readonly Dictionary<AbilityID, float> _cooldowns= new Dictionary<AbilityID, float>();
 
         void Update()
         {
-            // Tick cooldown down
-            if(_cooldownRemaining > 0)
+            if (_cooldowns.Count == 0)
             {
-                _cooldownRemaining -= Time.deltaTime;
-                if(_cooldownRemaining < 0 )
+                return;
+            }
+
+            List<AbilityID> keys = new List<AbilityID>(_cooldowns.Keys);
+
+            foreach (AbilityID abilityID in keys)
+            {
+                _cooldowns[abilityID] -= Time.deltaTime;
+
+                if (_cooldowns[abilityID] <= 0f)
                 {
-                    _cooldownRemaining = 0;
+                    _cooldowns.Remove(abilityID);
                 }
-                Debug.Log($"On cooldown remaining: {_cooldownRemaining:0.00}s");
             }
         }
 
         public void RequestActivate()
         {
+            var ability = PrimaryAbility;
             if (ability == null)
             {
                 Debug.LogError("AbilityRunner: No AbilityDefinition assigned.");
                 return;
             }
 
-            if (_cooldownRemaining > 0f)
+            RequestActivate(ability.abilityID);
+        }
+
+        public void RequestActivate(AbilityID id)
+        {
+            var ability = FindAbility(id);
+            if (ability == null)
             {
-                Debug.Log($"On cooldown: {_cooldownRemaining:0.00}s");
+                Debug.LogError($"AbilityRunner: No AbilityDefinition found for {id}.");
                 return;
             }
 
-            _cooldownRemaining = ability.cooldownSeconds;
-            Debug.Log($"{ability.displayName} activated. Cooldown: {_cooldownRemaining:0.00}s");
+            if (_cooldowns.TryGetValue(id, out var remaining) && remaining > 0f)
+            {
+                Debug.Log($"{id} on cooldown: {remaining:0.00}s");
+                return;
+            }
+
+            _cooldowns[id] = ability.cooldownSeconds;
+            Debug.Log($"{id} activated. Cooldown: {_cooldowns[id]:0.00}s");
+        }
+
+        private AbilityDefinition FindAbility(AbilityID id)
+        {
+            if (abilities == null) return null;
+
+            for (int i = 0; i < abilities.Length; i++)
+            {
+                var a = abilities[i];
+                if (a != null && a.abilityID == id)
+                    return a;
+            }
+
+            return null;
         }
     }
 }

@@ -24,7 +24,7 @@ namespace AbilityFramework.Runtime
                 return;
             }
 
-            runner.RequestActivate();
+            runner.RequestActivate(AbilityID.Dash);
         }
     }
 }
